@@ -1,4 +1,3 @@
-# D-Stream-Density-Based-Clustering
 # -*- coding: utf-8 -*-
 """
 Created on Fri Dec 16 16:38:17 2016
@@ -66,7 +65,7 @@ def initial_clustering(grid_list,class_name):
     print 'Clusters before', cluster
     update_den_grids(grid_list)
     print 'Grid_list while initialisation',grid_list
-    for grid in grid_list :
+    for grid in grid_list :  ##assign each dense grid to a unique cluster, label all other grids as NO_CLASS
         t = grid_list[grid]
         if(g_type(t) =="DENSE"):
             t['label'] = class_name            
@@ -82,6 +81,7 @@ def initial_clustering(grid_list,class_name):
             t['label']= 'NO_CLASS'
         grid_list[grid] = t   ##i!
     cluster1= dict(cluster)
+    
     for c in cluster1:
         for g in cluster1[c]:
             if(isoutside(g,cluster1[c])):
@@ -163,6 +163,7 @@ def clean_grid(grid_list):
             status = value['status']
             if status == 'SPORADIC' :
                 if (t-tg >= gaptime) :
+                    print "Cleaning grid ",key
                     value['tg'] = 0
                     value['tm'] = t
                     value['density'] = 0
@@ -179,12 +180,11 @@ def adjust_cluster(grid_list,class_name):
     print "Adjusting the grids...."
     update_grids(grid_list,class_name)
     for g in grid_list:
-        print 'Updation started'
-        print "Grid:",g
+        print 'Updation for grid ',g
         value = grid_list[g]
         tg = value['tg']
         prev_call = t- gaptime
-        if prev_call < tg <=t:
+        if prev_call < tg <=t:   ## why need this condition?
             ckey = get_cluster(g)
             if ckey != None :
                 c= cluster[ckey]
@@ -216,21 +216,21 @@ def adjust_cluster(grid_list,class_name):
                                          elif len(c) <= len(ch):
                                              move(ckey,chkey)
                              elif (g_type(hvalue) is "TRANSITIONAL") :
-                                 ctemp= list(ch)
+                                 ctemp= list(cluster[chkey])
                                  ctemp.append(g)
                                  
                                  if value['label'] == "NO_CLASS" and isoutside(h,ctemp):
                                      value['label'] = chkey    
-                                     ch.append(g)
-                                 elif len(c) >= len(ch):                   ##move: move h from cluster ch to c
+                                     cluster[chkey].append(g)
+                                 elif len(c) >= len(cluster[chkey]):                   ##move: move h from cluster ch to c
                                      valueh= grid_list[h]
                                      valueh['label']= ckey
                                      c.append(h)
-                                     if h not in ch:
+                                     if h not in cluster[chkey]:
                                          continue
                                      else :
-                                         ch.remove(h)
-                             cluster[chkey]=ch 
+                                         cluster[chkey].remove(h)
+                            # cluster[chkey]=ch 
                              
                 elif ( g_type(value) is "TRANSITIONAL" ) :
                     print "Transitional grid"
@@ -260,7 +260,7 @@ def adjust_cluster(grid_list,class_name):
                 cluster[ckey]=c #i!
         grid_list[g]= value #i!
 
-    #plot_cluster()
+    print 'Grid_list',grid_list #plot_cluster()
     return class_name
 ########## Checking for unconnected clusters and resolving it ##################         
 def resolve_connectivity(ckey,class_name):
@@ -293,16 +293,16 @@ def update_grids(grid_list,class_name) :
     for grid in grid_list :
         vector = grid_list[grid]
         update_charvec(grid,0)
-        if(g_type(vector) == "DENSE"):
-            l = vector.setdefault('label',class_name)
+        if(g_type(grid_list[grid]) == "DENSE"):
+            l = grid_list[grid].setdefault('label',class_name)
             if l == class_name :
                 cluster[class_name]= []
                 cluster[class_name].append(grid)
                 print 'Cluster',class_name, 'created'
-                class_name +=1
+                class_name+=1
         else:
-            l= vector.setdefault('label','NO_CLASS')
-        grid_list[grid]=vector #i!
+            grid_list[grid]['label'] = 'NO_CLASS'
+        #grid_list[grid]['label']=vector['label']   #i!
 #################### Getting the cluster in which the grid exists ###################
 def get_cluster(g) :
     key = grid_list[g].setdefault('label','NO_CLASS')
@@ -332,7 +332,7 @@ input_list = []
 class_name=1
 start_time = datetime.datetime.now()
 ########### Reading the records from file to a list #################
-input_list=pd.read_csv('test1.csv')  ## TODO: Normalize the data streams    
+input_list=pd.read_csv('test2.csv')  ## TODO: Normalize the data streams    
 #######
 
 
