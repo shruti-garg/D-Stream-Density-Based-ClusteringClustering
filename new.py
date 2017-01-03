@@ -49,7 +49,6 @@ def param_gen(delta,cm,cl,p):
     
 ########### Reading the records from file to a list #################     PROBLEM IN FUNCTION
 def get_den_grid(rec):
-    grid_size= [400/50,240000/50]
     temp=rec
     key=(temp/grid_size).apply(int)
     #key=(int((int)temp[0]/grid_size[0]),int((int)temp[1]/grid_size[1]))
@@ -124,7 +123,8 @@ def move(c1, c):
     for key in cluster[c1]:
         print "Moving grid",key,"from cluster",c1,"to cluster",c 
         grid_list[key]['label'] = c
-        cluster[c].append(key)
+        if key not in cluster[c]:
+            cluster[c].append(key)
     del cluster[c1]
     print "Cluster ", c1 , "deleted"
     return
@@ -169,7 +169,8 @@ def initial_clustering():
                         elif (g_type(hvector) == "TRANSITIONAL" ) :
                             print "Moving grid",h,"to cluster", c
                             grid_list[h]['label']= c
-                            cluster[c].append(h)
+                            if h not in cluster[c]:     ##EH: so that a cluster doesn't contain multiple grids with same key
+                                cluster[c].append(h)
                             print "Now class of", h,"is",grid_list[h]['label']
     return
     
@@ -196,6 +197,7 @@ def clean_grid():
                     value['density'] = 0
                     value['label']='NO_CLASS'   
                     value['status'] = "NORMAL"
+                    
             elif status == 'NORMAL' :
                 value['status'] = "SPORADIC"
         else :
@@ -263,9 +265,9 @@ def resolve_connectivity(ckey,g):
             cluster[class_name].append(grid)
             print 'Cluster', class_name, 'created'
             class_name +=1
-        elif g_type(vector) is "TRANSITIONAL":
-            grid_list[grid]['label'] = 'NO_CLASS'
-            cluster[ckey].remove(grid)
+#        elif g_type(vector) is "TRANSITIONAL":
+#            grid_list[grid]['label'] = 'NO_CLASS'
+#            cluster[ckey].remove(grid)
     return
             
 ################ Adjusting the clusters ##############################
@@ -297,7 +299,8 @@ def adjust_cluster():
                     if(g_type(grid_list[maxg]) is "DENSE"):
                         if vector['label'] == 'NO_CLASS' :
                             grid_list[g]['label'] = chkey
-                            cluster[chkey].append(g)
+                            if g not in cluster[chkey]:             ##EH
+                                cluster[chkey].append(g)
                         else:
                             ckey = get_cluster(g)
                             if ckey != chkey :      ##EH : Only merge clusters when we have 2 different clusters.
@@ -307,17 +310,19 @@ def adjust_cluster():
                                     move(ckey,chkey)                            
                     elif(g_type(grid_list[maxg]) is "TRANSITIONAL"):
                         if vector['label'] == 'NO_CLASS':
-                            cluster[chkey].append(g)
+                            if g not in cluster[chkey]:
+                                cluster[chkey].append(g)
                             grid_list[g]['label'] = chkey 
                             if isOutside(g,chkey) :
                                 print " "
                             else :
                                 grid_list[g]['label'] = 'NO_CLASS'
                                 cluster[chkey].remove(g)
-                        elif len(cluster[ckey]) >= len(cluster[chkey]):
+                        elif (ckey in cluster and chkey in cluster) and (len(cluster[ckey]) >= len(cluster[chkey])): ##EH: execute only when ckey and chkey exist in cluster
                             if ckey != chkey :
                                 grid_list[maxg]['label'] = ckey
-                                cluster[ckey].append(maxg)
+                                if maxg not in cluster[ckey]:
+                                    cluster[ckey].append(maxg)
                                 if maxg in cluster[chkey] :
                                     cluster[chkey].remove(maxg)
         elif(g_type(vector) is "TRANSITIONAL"):
@@ -332,7 +337,8 @@ def adjust_cluster():
                     chkey= get_cluster(maxg)
                     if chkey != None:
                         if isOutside(g,chkey):
-                            cluster[chkey].append(g)
+                            if g not in cluster[chkey]:
+                                cluster[chkey].append(g)
                             grid_list[g]['label'] = chkey
                             break
                     n_grid.remove(maxg)
@@ -348,22 +354,21 @@ def adjust_cluster():
 #start_time = datetime.datetime.now()   
 
 
-input_l=pd.read_csv('test2.csv')
+input_l=pd.read_csv('dim3.csv')
 
 
 ####################input_l parameters from the user###################
 cm=55
 cl=0.99
-p=50
+p=10
 delta=0.998
 maxima = lambda x:x.max()/p
-grid_size = input_l.apply(maxima)
+grid_size = input_l.apply(maxima) ##TODO: put 1 instead of x.max() if the data is normalized
 delta,dm,dl,gaptime,N,p=param_gen(delta,cm,cl,p)
- #@# ##TODO: put 1 instead of x.max() if the data is normalized
 
 tc=0
 t=1
-for i in range(0,25): #(0,input_l_l.shape[0]):
+for i in range (0,200): #range(input_l.shape[0]):
     rec=input_l.iloc[i,:]   ## iloc gets the input_l row at location i 
     g= get_den_grid(rec)  ## g stores the key for the input_l_l record    
     d =1000              ## TODO:constant factor to be multiplied to density 
@@ -379,4 +384,3 @@ for i in range(0,25): #(0,input_l_l.shape[0]):
         adjust_cluster()
         print 'Cluster after adjusting', cluster
     t +=1
-
