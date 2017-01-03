@@ -154,7 +154,7 @@ def initial_clustering():
             grid_list[g]['label']= 'NO_CLASS'
 
     for c in list(cluster):          ## EH: list so as to avoid runtime error: dict changed size during iteration.
-        if(cluster.get(c,0)):           ## 
+        if(cluster.get(c,0)):           ## get returns value for given key, if key not present returns 0.
             for g in cluster[c]:
                 if(isOutside(g,c)):
                     for h in neigh_grid(g):
@@ -244,35 +244,30 @@ def get_cluster(g) :
         return None
         
 ########## Checking for unconnected clusters and resolving them into separate clusters ##################         
-def resolve_connectivity(ckey):
+def resolve_connectivity(ckey,g):
     global class_name
+    global cluster
+    global grid_list
     print "Checking for unconnected clusters...."
-    
-    #########################-------------TO BE WRITTEN -----------------################
-#    c2=list()
-#    for grid in cluster[ckey] :                                                         #checking unconnection
-#        value = grid_list[grid]
-#        if g_type(value) is "SPARSE":
-#            c2 = cluster[ckey]
-#            c2.remove(grid)
-#            cluster[ckey]=c2 #i!
-#            value['label'] = 'NO_CLASS'
-#            grid_list[grid]=value #i!
-#            break
-#        if isoutside(grid,cluster[ckey]) is False :
-#            break    
-#        else:
-#            for ngrid in neigh_grid(grid):
-#                if ngrid in cluster[ckey]:
-#                    break
-#                else:
-#                    value=grid_list[ngrid]
-#                    if g_type(value) is "DENSE" :
-#                        cluster[class_name]=[]
-#                        cluster[class_name].append(ngrid)
-#                        print 'Cluster', class_name,'created'
-#                        class_name += 1
-    
+    #If g is an inside grid for cluster, do nothing.
+    if isOutside(g, ckey) is False :
+        return
+    #for all grids in cluster, make new cluster for dense grids, remove sparse grids, label as NO_CLASS for transitional grids.
+    for grid in list(cluster[ckey]) : 
+        vector= grid_list[grid]
+        if g_type(vector) is "SPARSE":
+            cluster[ckey].remove(grid)
+            grid_list[grid]['label']= 'NO_CLASS'
+        elif g_type(vector) is "DENSE":
+            cluster[class_name]=[]
+            cluster[class_name].append(grid)
+            print 'Cluster', class_name, 'created'
+            class_name +=1
+        elif g_type(vector) is "TRANSITIONAL":
+            grid_list[grid]['label'] = 'NO_CLASS'
+            cluster[ckey].remove(grid)
+    return
+            
 ################ Adjusting the clusters ##############################
 def adjust_cluster():
     global class_name
@@ -292,7 +287,7 @@ def adjust_cluster():
                 if g in c:
                     cluster[ckey].remove(g)
                     grid_list[g]['label'] = 'NO_CLASS'
-                    resolve_connectivity(ckey)
+                    resolve_connectivity(ckey,g)
         elif(g_type(vector) is "DENSE"):
             print "Dense Grid"
             maxg = max_size_cluster_grid(neigh_grid(g))
@@ -327,6 +322,9 @@ def adjust_cluster():
                                     cluster[chkey].remove(maxg)
         elif(g_type(vector) is "TRANSITIONAL"):
             print "Transitional Grid"
+            if(vector['label'] != 'NO_CLASS'):
+                grid_list[g] = 'NO_CLASS'
+                cluster[get_cluster(g)].remove(g)
             n_grid = neigh_grid(g)
             while(n_grid):
                 maxg= max_size_cluster_grid(n_grid)
@@ -334,8 +332,6 @@ def adjust_cluster():
                     chkey= get_cluster(maxg)
                     if chkey != None:
                         if isOutside(g,chkey):
-                            if(vector['label'] != 'NO_CLASS'):
-                                cluster[get_cluster(g)].remove(g)
                             cluster[chkey].append(g)
                             grid_list[g]['label'] = chkey
                             break
@@ -383,3 +379,4 @@ for i in range(0,25): #(0,input_l_l.shape[0]):
         adjust_cluster()
         print 'Cluster after adjusting', cluster
     t +=1
+
