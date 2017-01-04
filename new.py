@@ -15,7 +15,6 @@ import numpy as np
 #############################################################################
 ############### Initializing the data structures and variables ##############
 grid_list ={}                   ##{} is for dictionary, [] is for list
-tgrid_list = {}
 cluster = {}
 input_l = []
 class_name = 1
@@ -23,11 +22,7 @@ class_name = 1
 ################## Functions ###################################
 ############### Taking the parameters as input_l from user #################
 def param_gen(delta,cm,cl,p):
-    
-    #global input_l
-    
     ### EH: If N is too large show error and ask to decrease value of p. 
-    #input_l = np.array(input_l)
     N=p**input_l.shape[1] ##shape[1] gives the dimension of the input_l i.e. the number of columns
     if (cm >= N) :
         print "Parameter cm is out of range(valid range : 1<cm<N) !!!"
@@ -39,10 +34,10 @@ def param_gen(delta,cm,cl,p):
     d2 = float(cl/cm)
     d3 = float(max(d2, d1))
     d = float(math.log(d3, delta))
-    dm = 100*cm/(N*(1 - delta))
+    dm = 1000*cm/(N*(1 - delta))
     dl = 1000*cl/(N*(1 - delta))
     gaptime = math.floor(d)  # TODO: Make sure gaptime  doesn't become zero # gaptime becomes 0 when cm is small and cl is large. #  d3 should be less than lambda
-    #gaptime=20
+    gaptime=20
     assert gaptime != 0, "Modulo by zero (timediff % gaptime) !!!"
     print 'Gaptime :', gaptime
     return delta,dm,dl,gaptime,N,p
@@ -54,7 +49,7 @@ def get_den_grid(rec):
     #key=(int((int)temp[0]/grid_size[0]),int((int)temp[1]/grid_size[1]))
     key=tuple(key)
     if key not in grid_list :
-        grid_list[key]= {'tg':0,'tm':0, 'density':0,'status':'NORMAL'}                                              ##   adds key to the grid with empty values
+        grid_list[key]= {'tg':0,'tm':0, 'density':0,'status':'NORMAL','label':'NO_CLASS'}                                              ##   adds key to the grid with empty values
         tgrid_list[key]= list(rec)
     else :
         tgrid_list[key].append(list(rec))
@@ -88,7 +83,7 @@ def g_type(vector) :
         gtype = "SPARSE"
     elif ( D >= dm ) :
         gtype = "DENSE"
-    elif (( D <= dm ) and ( D >= dl )) :
+    elif (( D < dm ) and ( D > dl )) :
         gtype = "TRANSITIONAL"
     return gtype
         
@@ -265,9 +260,10 @@ def resolve_connectivity(ckey,g):
             cluster[class_name].append(grid)
             print 'Cluster', class_name, 'created'
             class_name +=1
-#        elif g_type(vector) is "TRANSITIONAL":
-#            grid_list[grid]['label'] = 'NO_CLASS'
-#            cluster[ckey].remove(grid)
+        elif g_type(vector) is "TRANSITIONAL":
+            grid_list[grid]['label'] = 'NO_CLASS'
+    del cluster[ckey]                                   # Delete the whole cluster, it would be adjusted accordingly.
+    print "Deleting Cluster ",ckey
     return
             
 ################ Adjusting the clusters ##############################
@@ -331,8 +327,10 @@ def adjust_cluster():
                 grid_list[g] = 'NO_CLASS'
                 cluster[get_cluster(g)].remove(g)
             n_grid = neigh_grid(g)
-            while(n_grid):
+            while(len(n_grid)):
                 maxg= max_size_cluster_grid(n_grid)
+                if maxg == None:                            ## EH: To avoid infinite loop when no neighbourin ggrid belong to a cluster
+                    break
                 if maxg != None :
                     chkey= get_cluster(maxg)
                     if chkey != None:
@@ -343,32 +341,21 @@ def adjust_cluster():
                             break
                     n_grid.remove(maxg)
     return                    
-                        
-
     
-########### Reading the records from file to a list #################
-#text_file = open("test3.csv", "r")
-#reader = csv.reader(text_file,delimiter = ',')
-#for row in reader :
-#    input_l.append(row)  ## TODO: Normalize the data streams
-#start_time = datetime.datetime.now()   
-
-
-input_l=pd.read_csv('dim3.csv')
-
+input_l=pd.read_csv('dim5.csv')
 
 ####################input_l parameters from the user###################
-cm=55
+cm=30
 cl=0.99
-p=10
+p=6
 delta=0.998
 maxima = lambda x:x.max()/p
-grid_size = input_l.apply(maxima) ##TODO: put 1 instead of x.max() if the data is normalized
+grid_size = input_l.apply(maxima)                   ##TODO: put 1 instead of x.max() if the data is normalized
 delta,dm,dl,gaptime,N,p=param_gen(delta,cm,cl,p)
 
 tc=0
 t=1
-for i in range (0,200): #range(input_l.shape[0]):
+for i in range (input_l.shape[0]): #range(input_l.shape[0]):
     rec=input_l.iloc[i,:]   ## iloc gets the input_l row at location i 
     g= get_den_grid(rec)  ## g stores the key for the input_l_l record    
     d =1000              ## TODO:constant factor to be multiplied to density 
