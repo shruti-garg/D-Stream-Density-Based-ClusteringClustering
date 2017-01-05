@@ -34,34 +34,27 @@ def param_gen(delta,cm,cl,p):
     d2 = float(cl/cm)
     d3 = float(max(d2, d1))
     d = float(math.log(d3, delta))
-    dm = 1000*cm/(N*(1 - delta))
+    dm = 100*cm/(N*(1 - delta))
     dl = 1000*cl/(N*(1 - delta))
     gaptime = math.floor(d)  # TODO: Make sure gaptime  doesn't become zero # gaptime becomes 0 when cm is small and cl is large. #  d3 should be less than lambda
-    gaptime=20
     assert gaptime != 0, "Modulo by zero (timediff % gaptime) !!!"
     print 'Gaptime :', gaptime
     return delta,dm,dl,gaptime,N,p
-    
 ########### Reading the records from file to a list #################     PROBLEM IN FUNCTION
 def get_den_grid(rec):
     temp=rec
     key=(temp/grid_size).apply(int)
-    #key=(int((int)temp[0]/grid_size[0]),int((int)temp[1]/grid_size[1]))
     key=tuple(key)
     if key not in grid_list :
         grid_list[key]= {'tg':0,'tm':0, 'density':0,'status':'NORMAL','label':'NO_CLASS'}                                              ##   adds key to the grid with empty values
-        tgrid_list[key]= list(rec)
-    else :
-        tgrid_list[key].append(list(rec))
+
     return key
-    
 ############### Updating the characterstic vector #######################
 def update_charvec(g,d):
     global grid_list
     grid_list[g]['density']= update_den(g,d) 
     grid_list[g]['tg']= t
     return
-
 ############### Updating the density of grids ###################    
 def update_den(g,den):
     global grid_list
@@ -69,13 +62,11 @@ def update_den(g,den):
     prev_den = grid_list[g]['density']
     grid_den = (prev_den * float(math.pow(delta,d)))+den
     return grid_den
-    
 ###### updates all the grids by multiplying the decay factor############## 
 def update_den_grids():
     global grid_list
     for grid in grid_list :
         update_charvec(grid,0)
-        
 ################ Finding the type of grid(dense,sparse or transitional) ############    
 def g_type(vector) :
     D = vector['density']
@@ -86,16 +77,14 @@ def g_type(vector) :
     elif (( D < dm ) and ( D > dl )) :
         gtype = "TRANSITIONAL"
     return gtype
-        
 ############## Checking if the grid is an outside grid ##################### 
 def isOutside(g,c):
     global cluster
-    for ng in neigh_grid(g):
+    for ng in neigh_grid_all(g):        #consider all possible neigh grids to check if it's an outside grid.
         if ng not in cluster[c]:
             return True
     return False
-    
-############## Finding the neighbour grids ######################    
+############## Finding the neighbour grids which are in the grid_list ######################    
 def neigh_grid(g) :
     n_grid = []
     for j in range(0,len(g)):
@@ -110,7 +99,19 @@ def neigh_grid(g) :
         if temp2 in grid_list :
             n_grid.append(temp2)
     return n_grid
-    
+############## Finding the neighbour grids for all grids possible######################    
+def neigh_grid_all(g) :
+    n_grid = []
+    for j in range(0,len(g)):
+        temp1= list(g)
+        temp2 = list(g)
+        temp1[j] = temp1[j]-1
+        temp1 = tuple(temp1)
+        temp2[j] = temp2[j]+1
+        temp2 = tuple(temp2)
+        n_grid.append(temp1)
+        n_grid.append(temp2)
+    return n_grid
 ############# Move grids from one cluster to another #####################
 def move(c1, c):
     global cluster
@@ -123,7 +124,6 @@ def move(c1, c):
     del cluster[c1]
     print "Cluster ", c1 , "deleted"
     return
-    
 ################ Forming the initial clusters ###########################
 def initial_clustering():
     global class_name
@@ -161,6 +161,7 @@ def initial_clustering():
                                     move(ch,c)
                                 else :
                                     move(c,ch)
+                                    break##EH: C cluster finishes, so no pint in iterating in inner for loop
                         elif (g_type(hvector) == "TRANSITIONAL" ) :
                             print "Moving grid",h,"to cluster", c
                             grid_list[h]['label']= c
@@ -168,7 +169,6 @@ def initial_clustering():
                                 cluster[c].append(h)
                             print "Now class of", h,"is",grid_list[h]['label']
     return
-    
 ################# Removing the SPORADIC grids ########################
 def clean_grid():
     global grid_list
@@ -199,7 +199,6 @@ def clean_grid():
             value['status'] = "NORMAL"
         grid_list[key] = value       #i!
     print "Finished Cleaning..."
-    
 ############## Updating the density of grids before adjusting clusters #####################
 def update_grids() :
     global grid_list
@@ -215,7 +214,6 @@ def update_grids() :
                 class_name+=1
         else:
             grid_list[grid]['label'] = 'NO_CLASS'
-            
 ################## Getting the grid whose cluster has the maximum size ##################
 def max_size_cluster_grid(n_grid):
     global cluster
@@ -231,7 +229,6 @@ def max_size_cluster_grid(n_grid):
                 max_len = size
                 max_cluster_grid=key
     return max_cluster_grid
-    
 #################### Getting the cluster in which the grid exists ###################
 def get_cluster(g) :
     key = grid_list[g].setdefault('label','NO_CLASS')
@@ -239,7 +236,6 @@ def get_cluster(g) :
         return key
     else :
         return None
-        
 ########## Checking for unconnected clusters and resolving them into separate clusters ##################         
 def resolve_connectivity(ckey,g):
     global class_name
@@ -265,7 +261,6 @@ def resolve_connectivity(ckey,g):
     del cluster[ckey]                                   # Delete the whole cluster, it would be adjusted accordingly.
     print "Deleting Cluster ",ckey
     return
-            
 ################ Adjusting the clusters ##############################
 def adjust_cluster():
     global class_name
@@ -273,9 +268,9 @@ def adjust_cluster():
     global cluster
     print "Adjusting the grids into appropriate clusters...."
     update_grids()
-    
     for g in grid_list:
-        print "Updation for grid ", g
+        print "Updation for grid ",g, 
+        ckey = get_cluster(g)
         vector = grid_list[g]
         if(g_type(vector) is "SPARSE"):
             print "Sparse grid"
@@ -321,11 +316,18 @@ def adjust_cluster():
                                     cluster[ckey].append(maxg)
                                 if maxg in cluster[chkey] :
                                     cluster[chkey].remove(maxg)
+            if(grid_list[g]['label'] == 'NO_CLASS'):                 #Correction: Make a new cluster with this dense grid if it cannot be merged into other cluster.
+                cluster[class_name]= []
+                cluster[class_name].append(g)
+                print 'Cluster',class_name, 'created'
+                grid_list[g]['label']= class_name
+                print cluster
+                class_name +=1    
         elif(g_type(vector) is "TRANSITIONAL"):
             print "Transitional Grid"
             if(vector['label'] != 'NO_CLASS'):
-                grid_list[g] = 'NO_CLASS'
                 cluster[get_cluster(g)].remove(g)
+                grid_list[g]['label'] = 'NO_CLASS'
             n_grid = neigh_grid(g)
             while(len(n_grid)):
                 maxg= max_size_cluster_grid(n_grid)
@@ -333,6 +335,7 @@ def adjust_cluster():
                     break
                 if maxg != None :
                     chkey= get_cluster(maxg)
+                    print 'maxg', maxg, 
                     if chkey != None:
                         if isOutside(g,chkey):
                             if g not in cluster[chkey]:
@@ -341,27 +344,24 @@ def adjust_cluster():
                             break
                     n_grid.remove(maxg)
     return                    
-    
-input_l=pd.read_csv('dim5.csv')
-
+input_l=pd.read_csv('dim2.csv')
 ####################input_l parameters from the user###################
-cm=30
+cm=87
 cl=0.99
-p=6
+p=10
 delta=0.998
 maxima = lambda x:x.max()/p
 grid_size = input_l.apply(maxima)                   ##TODO: put 1 instead of x.max() if the data is normalized
 delta,dm,dl,gaptime,N,p=param_gen(delta,cm,cl,p)
-
 tc=0
 t=1
-for i in range (input_l.shape[0]): #range(input_l.shape[0]):
+for i in range(input_l.shape[0]): #range(input_l.shape[0]):
     rec=input_l.iloc[i,:]   ## iloc gets the input_l row at location i 
     g= get_den_grid(rec)  ## g stores the key for the input_l_l record    
     d =1000              ## TODO:constant factor to be multiplied to density 
     update_charvec(g,d) ##updates the density for the new input_l_l point
     timediff= t-tc
-    print "Processed record" , rec , "into grid ", g
+    print "Adding input into grid ", g,
     if timediff == gaptime :
         print 'Cluster before initial clustering', cluster
         initial_clustering()
@@ -369,5 +369,6 @@ for i in range (input_l.shape[0]): #range(input_l.shape[0]):
     if (timediff % gaptime)== 0:
         clean_grid()
         adjust_cluster()
-        print 'Cluster after adjusting', cluster
+        print '****************Cluster after adjusting at t=',t, cluster
+        print 'Grid_list' , grid_list
     t +=1
