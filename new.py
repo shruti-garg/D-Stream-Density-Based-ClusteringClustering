@@ -193,6 +193,9 @@ def clean_grid():
                     value['density'] = 0
                     if(value['label'] != 'NO_CLASS'):
                         cluster[get_cluster(key)].remove(key)
+                        if(len(cluster[get_cluster(key)]) == 0):
+                            del cluster[get_cluster(key)]
+                            print "Deleting Cluster", get_cluster(key)
                     value['label']='NO_CLASS'   
                     value['status'] = "NORMAL"
                     
@@ -208,20 +211,20 @@ def update_grids() :
     global class_name
     for grid in grid_list :
         update_charvec(grid,0)
-        if(g_type(grid_list[grid]) == "DENSE"):
-            l = grid_list[grid].setdefault('label',class_name)
-            if l == class_name :
-                cluster[class_name]= []
-                cluster[class_name].append(grid)
-                print 'Cluster',class_name, 'created'
-                class_name+=1
-        else:
-            if(grid_list[grid]['label'] != 'NO_CLASS'):
-                cluster[get_cluster(grid)].remove(grid)
-                if(len(cluster[get_cluster(grid)]) == 0):
-                    del cluster[get_cluster(grid)]
-                    print "Deleting Cluster", get_cluster(grid)
-                grid_list[grid]['label'] = 'NO_CLASS'
+#        if(g_type(grid_list[grid]) == "DENSE"):
+#            l = grid_list[grid].setdefault('label',class_name)
+#            if l == class_name :
+#                cluster[class_name]= []
+#                cluster[class_name].append(grid)
+#                print 'Cluster',class_name, 'created'
+#                class_name+=1
+#        else:
+#            if(grid_list[grid]['label'] != 'NO_CLASS'):
+#                cluster[get_cluster(grid)].remove(grid)
+#                if(len(cluster[get_cluster(grid)]) == 0):
+#                    del cluster[get_cluster(grid)]
+#                    print "Deleting Cluster", get_cluster(grid)
+#                grid_list[grid]['label'] = 'NO_CLASS'
                 
 ################## Getting the grid whose cluster has the maximum size ##################
 def max_size_cluster_grid(n_grid):
@@ -259,6 +262,9 @@ def resolve_connectivity(ckey,g):
         vector= grid_list[grid]
         if g_type(vector) is "SPARSE":
             cluster[ckey].remove(grid)
+            if(len(cluster[ckey]) == 0):
+                del cluster[ckey]
+                print "Deleting Cluster", ckey
             grid_list[grid]['label']= 'NO_CLASS'
         elif g_type(vector) is "DENSE":
             cluster[class_name]=[]
@@ -291,6 +297,9 @@ def adjust_cluster():
                 c = cluster[ckey]
                 if g in c:
                     cluster[ckey].remove(g)
+                    if(len(cluster[ckey]) == 0):
+                        del cluster[ckey]
+                        print "Deleting Cluster", ckey
                     grid_list[g]['label'] = 'NO_CLASS'
                     resolve_connectivity(ckey,g)
         elif(g_type(grid_list[g]) is "DENSE"):
@@ -320,6 +329,9 @@ def adjust_cluster():
                             else :
                                 grid_list[g]['label'] = 'NO_CLASS'
                                 cluster[chkey].remove(g)
+                                if(len(cluster[chkey]) == 0):
+                                    del cluster[chkey]
+                                    print "Deleting Cluster", chkey
                         elif (ckey in cluster and chkey in cluster) and (len(cluster[ckey]) >= len(cluster[chkey])): ##EH: execute only when ckey and chkey exist in cluster
                             if ckey != chkey :
                                 grid_list[maxg]['label'] = ckey
@@ -327,16 +339,22 @@ def adjust_cluster():
                                     cluster[ckey].append(maxg)
                                 if maxg in cluster[chkey] :
                                     cluster[chkey].remove(maxg)
+                                    if(len(cluster[chkey]) == 0):
+                                        del cluster[chkey]
+                                        print "Deleting Cluster", chkey
             if(grid_list[g]['label'] == 'NO_CLASS'):                 #Correction: Make a new cluster with this dense grid if it cannot be merged into other cluster.
                 cluster[class_name]= []
                 cluster[class_name].append(g)
                 print 'Cluster',class_name, 'created'
                 grid_list[g]['label']= class_name
-                print cluster
+                #print cluster
                 class_name +=1    
         elif(g_type(grid_list[g]) is "TRANSITIONAL"):
             if(grid_list[g]['label'] != 'NO_CLASS'):
                 cluster[get_cluster(g)].remove(g)
+                if(len(cluster[get_cluster(g)]) == 0):
+                    del cluster[get_cluster(g)]
+                    print "Deleting Cluster", get_cluster(g)
                 grid_list[g]['label'] = 'NO_CLASS'
             n_grid = neigh_grid(g)
             while(len(n_grid)):
@@ -354,11 +372,11 @@ def adjust_cluster():
                             break
                     n_grid.remove(maxg)
     return                    
-input_l=pd.read_csv('dim3.csv')
+input_l=pd.read_csv('dim4.csv')
 ####################input_l parameters from the user###################
 cm=120
 cl=0.8
-p=50
+p=10
 delta=0.997
 maxima = lambda x:x.max()/p
 grid_size = input_l.apply(maxima)                   ##TODO: put 1 instead of x.max() if the data is normalized
