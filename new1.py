@@ -480,3 +480,4 @@ for i in range(input_l.shape[0]): #range(input_l.shape[0]):
         adjust_cluster()
         print '****************Cluster at t=',t, cluster
     t +=1
+plot_it()
